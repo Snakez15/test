@@ -1,0 +1,38 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+-- Your settings (you can toggle this anytime)
+_G.Settings = _G.Settings or {}
+_G.Settings.NoFailLockpick = true  -- Change to false to disable
+
+-- Function to apply the no-fail effect
+local function ApplyNoFailLockpick(gui)
+    if not gui or gui.Name ~= "LockpickGUI" then return end
+
+    local scale = _G.Settings.NoFailLockpick and 10 or 1
+
+    -- Safely access the bars (with pcall in case structure changes)
+    pcall(function()
+        gui.MF["LP_Frame"].Frames.B1.Bar.UIScale.Scale = scale
+        gui.MF["LP_Frame"].Frames.B2.Bar.UIScale.Scale = scale
+        gui.MF["LPFrame"].Frames.B3.Bar.UIScale.Scale = scale
+    end)
+end
+
+
+for , item in ipairs(PlayerGui:GetChildren()) do
+    ApplyNoFailLockpick(item)
+end
+
+
+PlayerGui.ChildAdded:Connect(ApplyNoFailLockpick)
+
+
+spawn(function()
+    while wait(0.5) do
+        if PlayerGui:FindFirstChild("LockpickGUI") then
+            ApplyNoFailLockpick(PlayerGui.LockpickGUI)
+        end
+    end
+end)
