@@ -1,38 +1,92 @@
+
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
--- Your settings (you can toggle this anytime)
-_G.Settings = _G.Settings or {}
-_G.Settings.NoFailLockpick = true  -- Change to false to disable
+-- Anti-Cheat Bypass Setup (Adonis/EasyAntiCheat common in Criminality)
+-- Hook into common detection points to prevent kicks/bans
+local mt = getrawmetatable(game)
+local old = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    
+    -- Bypass common anti-exploit checks (e.g., kick, ban, detect)
+    if method == "Kick" or method == "FireServer" and (args[1] == "AntiCheat" or string.find(tostring(args[1]), "Exploit")) then
+        return
+    end
+    
+    -- Prevent GUI modifications from being flagged
+    if self.Name == "LockpickGUI" and method == "Destroy" then
+        return
+    end
+    
+    return old(self, ...)
+end)
+setreadonly(mt, true)
 
--- Function to apply the no-fail effect
+-- Delay initial load to avoid injection detection (common in Criminality)
+wait(2)  -- 2-second delay for safety
+
+-- Your settings (toggle anytime)
+_G.Settings = _G.Settings or {}
+_G.Settings.NoFailLockpick = true  -- Set to false to disable
+
+-- Function to apply the no-fail effect (with extra safety checks)
 local function ApplyNoFailLockpick(gui)
     if not gui or gui.Name ~= "LockpickGUI" then return end
-
+    
+    -- Double-check existence to avoid errors
+    local lpFrame = gui:FindFirstChild("MF") and gui.MF:FindFirstChild("LP_Frame")
+    if not lpFrame then return end
+    
+    local frames = lpFrame:FindFirstChild("Frames")
+    if not frames then return end
+    
     local scale = _G.Settings.NoFailLockpick and 10 or 1
-
-    -- Safely access the bars (with pcall in case structure changes)
+    
+    -- Apply with pcall for crash protection (anti-cheat might interfere)
     pcall(function()
-        gui.MF["LP_Frame"].Frames.B1.Bar.UIScale.Scale = scale
-        gui.MF["LP_Frame"].Frames.B2.Bar.UIScale.Scale = scale
-        gui.MF["LPFrame"].Frames.B3.Bar.UIScale.Scale = scale
+        local b1 = frames:FindFirstChild("B1") and frames.B1:FindFirstChild("Bar")
+        local b2 = frames:FindFirstChild("B2") and frames.B2:FindFirstChild("Bar")
+        local b3 = frames:FindFirstChild("B3") and frames.B3:FindFirstChild("Bar")
+        
+        if b1 and b1:FindFirstChild("UIScale") then b1.UIScale.Scale = scale end
+        if b2 and b2:FindFirstChild("UIScale") then b2.UIScale.Scale = scale end
+        if b3 and b3:FindFirstChild("UIScale") then b3.UIScale.Scale = scale end
     end)
+    
+    print("No-Fail Lockpick applied! (Scale: " .. scale .. ")")
 end
 
-
-for , item in ipairs(PlayerGui:GetChildren()) do
-    ApplyNoFailLockpick(item)
-end
-
-
-PlayerGui.ChildAdded:Connect(ApplyNoFailLockpick)
-
-
+-- Check if GUI already exists (e.g., mid-lockpick)
 spawn(function()
-    while wait(0.5) do
-        if PlayerGui:FindFirstChild("LockpickGUI") then
-            ApplyNoFailLockpick(PlayerGui.LockpickGUI)
+    wait(1)
+    if PlayerGui:FindFirstChild("LockpickGUI") then
+        ApplyNoFailLockpick(PlayerGui.LockpickGUI)
+    end
+end)
+
+-- Listen for new GUIs (handles opening lockpicks)
+PlayerGui.ChildAdded:Connect(function(item)
+    spawn(function()
+        wait(0.5)  -- Micro-delay to let GUI fully load
+        ApplyNoFailLockpick(item)
+    end)
+end)
+
+-- Real-time toggle watcher (re-applies on change)
+spawn(function()
+    local lastSetting = _G.Settings.NoFailLockpick
+    while wait(1) do
+        if _G.Settings.NoFailLockpick ~= lastSetting then
+            lastSetting = _G.Settings.NoFailLockpick
+            if PlayerGui:FindFirstChild("LockpickGUI") then
+                ApplyNoFailLockpick(PlayerGui.LockpickGUI)
+            end
         end
     end
 end)
+
+print("Bypassed No-Fail Lockpick loaded for Criminality! Use _G.Settings.NoFailLockpick to toggle.")
